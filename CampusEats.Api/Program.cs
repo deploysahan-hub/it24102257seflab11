@@ -13,6 +13,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Configure CORS for frontend access
+builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
+{
+    var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
+    if (allowedOrigins != null && allowedOrigins.Length > 0)
+    {
+        p.WithOrigins(allowedOrigins)
+         .AllowAnyHeader()
+         .AllowAnyMethod();
+    }
+    else
+    {
+        p.SetIsOriginAllowed(_ => true)
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials();
+    }
+}));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("Default")
@@ -110,13 +129,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+app.UseCors("Frontend"); // before MapControllers()
 
 app.UseAuthentication(); // who are you? (validates JWT)
 app.UseAuthorization(); // may you? (checks roles)
